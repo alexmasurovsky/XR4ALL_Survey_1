@@ -10,10 +10,10 @@ knitr::opts_chunk$set(tidy = TRUE, message = FALSE, warning = FALSE, echo=FALSE)
 ```
 
 ```{r load_in, include = FALSE, echo=FALSE}
-Packages = c("dplyr", "ggplot2","pastecs", "rcompanion", "reshape2", "Rmisc", "here", "tidyverse", "stringr", "readxl") 
+Packages = c("dplyr", "ggplot2","pastecs", "rcompanion", "reshape2", "Rmisc", "here", "tidyverse", "stringr", "readxl", "wesanderson") 
 lapply(Packages, library, character.only = TRUE)
 
-raw_responses <- read_excel("results-survey331442.xlsx")
+raw_responses <- read_excel("results-survey-2020_05_12.xlsx")
 
 # dataset for all that completed the first page
 completed_first_page <- raw_responses %>% filter(lastpage==1 | lastpage==2)
@@ -26,6 +26,7 @@ completed_full_survey <- raw_responses %>% filter(lastpage==2)
 ```{r overall}
 n_first_page <- nrow(completed_first_page)
 n_completed <- nrow(completed_full_survey)
+
 ```
 
 `r n_first_page` people completed the first page.
@@ -75,19 +76,12 @@ relevant_counts <-
                         nrow(Q1 %>% filter(is.na(`Q01UserType[other]`)==FALSE & yes_count == 1))))
 relevant_counts$categories <- factor(relevant_counts$categories, levels=relevant_counts$categories)
 
-# ggplot(relevant_counts[c(1:3),], aes(x="researchers and devs", y=counts))+
-#   geom_bar(aes(fill=categories), stat="identity", position="stack", width = .2)+
-#   coord_flip()+labs(x="Researchers and devs")+scale_x_discrete(labels=NULL)+guides()+
-#   geom_label(aes(y=sum(counts)-counts+2, label=counts), position="identity")
-# 
-# ggplot(relevant_counts, aes(categories, counts, fill=categories))+
-#   geom_bar(data=relevant_counts[c(4:7),], aes(categories, counts, fill=categories), stat="identity", width = .4)+
-#   coord_flip()
 
 ggplot(relevant_counts, aes(categories, counts, fill=categories))+
   geom_bar(aes(fill=categories), stat="identity", position="dodge")+
   scale_x_discrete(labels=NULL)+
-  labs(title="Q1 Sample user types", x=NULL, y=NULL)+
+  labs(title="User Types", x=NULL, y=NULL,
+       caption=paste0("(completed first 3 questions, n = ", n_first_page, ")"))+
   #coord_flip()+labs()+
   theme_minimal()+
   geom_text(aes(label=counts, y=counts-.6), color="white", size=3.5)
@@ -96,26 +90,6 @@ Q1_other <- completed_first_page %>% filter(is.na(`Q01UserType[other]`) == FALSE
   select(id, `Q01UserType[other]`)
 cat("\nQ1 - Other responses:")
 Q1_other
-
-
-  # donut plot
-  # CC_T$fraction = CC_T$count / sum(CC_T$count)
-  # CC_T = CC_T[order(CC_T$fraction), ]
-  # CC_T$ymax = cumsum(CC_T$fraction)
-  # CC_T$ymin = c(0, head(CC_T$ymax, n=-1))
-  # CC_T$category <- str_c(CC_T$category, ' (', CC_T$count, ')')
-  
-  # p_cat = ggplot(CC_T, aes(fill=category, ymax=ymax, ymin=ymin, xmax=4, xmin=3)) +
-  #   geom_rect() +
-  #   coord_polar(theta="y") +
-  #   xlim(c(0, 4)) +
-  #   theme_minimal() +
-  #   theme(panel.grid=element_blank()) +
-  #   theme(axis.text=element_blank()) +
-  #   theme(axis.ticks=element_blank()) +
-  #   labs(fill ="Category (count)") +
-  #   theme(legend.position='left')
-
 
 # Q2 Interested? Yes/No
 Q2_yes <- completed_first_page %>% filter(Q02Interest=="Yes")
@@ -225,6 +199,210 @@ ggsave("what_feature_researchers.jpg")
 ```
 
 ```{r completed_survey}
+Q1 <- completed_full_survey %>% select(id, contains("Q01UserType"))
+
+# count responses per person
+Q1_counts <- Q1
+Q1_counts[which(is.na(Q1$`Q01UserType[other]`)),"Q01UserType[other]"] <- "No"
+Q1_counts[which(Q1$`Q01UserType[other]`!="No"),"Q01UserType[other]"] <- "Yes"
+for (i in 1:length(Q1_counts[[1]])){
+  this_row <- t(Q1_counts[i,c(2:6)])
+  row.names(this_row) <- NULL
+  Q1_counts[i,"yes_count"] <- sum(as.vector(this_row)=="Yes")
+}
+
+# add column "yes_count" to identify which people put more than one response
+Q1 <- left_join(Q1, select(Q1_counts, id, yes_count))
+
+# relevant counts
+relevant_counts <-
+    data.frame(categories=c("Unity dev (only)",
+                            "Both researcher \n& Unity dev",
+                            "Researcher (only)"),
+                           # "Also therapist/clinician",
+                            #"Also marketing/product testing",
+                            #"Also other"),
+               counts=c(nrow(Q1 %>% filter(`Q01UserType[SQ001]`=="Yes" & `Q01UserType[SQ003]`=="No")),
+                        nrow(Q1 %>% filter(`Q01UserType[SQ001]`=="Yes" &`Q01UserType[SQ003]`=="Yes")),
+                        nrow(Q1 %>% filter(`Q01UserType[SQ001]`=="No" & `Q01UserType[SQ003]`=="Yes"))))#,
+                       # nrow(Q1 %>% filter(`Q01UserType[SQ002]`=="Yes")),
+                      #  nrow(Q1 %>% filter(`Q01UserType[SQ004]`=="Yes")),
+                      #  nrow(Q1 %>% filter(is.na(`Q01UserType[other]`)==FALSE & yes_count > 1))))
+relevant_counts$categories <- factor(relevant_counts$categories, levels=relevant_counts$categories)
+
+#  set up donut plot
+relevant_counts$fraction = relevant_counts$count / sum(relevant_counts$count) # maybe make n instead
+relevant_counts$xpos <- c(4.9, 4.1, 4.0) # position of outer circle labels
+relevant_counts$ymax = cumsum(relevant_counts$fraction)
+relevant_counts$ymin = c(0, head(relevant_counts$ymax, n=-1))
+#relevant_counts$categories <- str_c(relevant_counts$categories, ' (', relevant_counts$count, ')')
+
+counts2 <-
+  data.frame(categories=c("Also therapist/\nclinician",
+                            "Also marketing/\nproduct testing",
+                            "Also other"),
+               counts=c(nrow(Q1 %>% filter(`Q01UserType[SQ002]`=="Yes")),
+                        nrow(Q1 %>% filter(`Q01UserType[SQ004]`=="Yes")),
+                        nrow(Q1 %>% filter(is.na(`Q01UserType[other]`)==FALSE & yes_count > 1))))
+counts2$fraction = counts2$count / sum(counts2$count) # maybe make n instead
+counts2$ymax = cumsum(counts2$fraction)
+counts2$ymin = c(0, head(counts2$ymax, n=-1))
+
+# # plot
+# ggplot(relevant_counts, aes(fill=categories, ymax=ymax, ymin=ymin, xmin=5, xmax=6))+
+#   geom_rect()+
+#   xlim(c(0,8))+ # modify thickness; larger range = smaller, thinner plot
+#   coord_polar(theta="y", start=0)+ # comment this out to better visualize x-y plane
+#   geom_rect(data=counts2, aes(xmin=1, xmax=2))+
+#   scale_fill_brewer(palette = "Blues")+ #"Dark2")+
+#   scale_color_brewer(palette = "Blues")+ #copy above
+#   labs(title="User Types", x=NULL, y=NULL, fill="User type")+#caption=paste0("(completed full survey, n = ", n_completed, ")"))+
+#   theme_void()+
+#   theme(legend.position='none', plot.title = element_text(hjust=.3, size=18))+
+#   #guides(fill = guide_legend(reverse = TRUE))+
+#   # fiddle with the x position here to move labels in/out:
+#   geom_text(aes(label=categories, x=8, y=(ymax+ymin)/2), size=4)+
+#   geom_text(aes(label=counts, x=5.5, y=(ymax+ymin)/2), size=3.5, color="white")+
+#   geom_text(data=counts2, aes(label=categories, x=3.2, y=(ymax+ymin)/2), size=3.5, color="Grey2")+
+#   geom_text(data=counts2, aes(label=counts, x=1.5, y=(ymax+ymin)/2), size=3.5, color="Grey2")
+# ggsave("Q1_user_types_completed_survey_donut.jpg")
+
+xmin_l = 6
+xmax_l = 7
+xmin_s = 0
+xmax_s = 1
+# plot
+ggplot(relevant_counts, aes(fill=categories, ymax=ymax, ymin=ymin, xmin=xmin_l, xmax=xmax_l))+
+  geom_rect()+
+  xlim(c(-2,8))+ # modify thickness; larger range = smaller, thinner plot
+  coord_polar(theta="y", start=0)+ # comment this out to better visualize x-y plane
+  geom_rect(data=counts2, aes(xmin=xmin_s, xmax=xmax_s))+
+  scale_fill_brewer(palette = "Blues")+ #"Dark2")+
+  scale_color_brewer(palette = "Blues")+ #copy above
+  labs(title="User Types", x=NULL, y=NULL, fill="User type",
+       caption=paste0("(completed full survey, n = ", n_completed, ")"))+
+  theme_void()+
+  theme(legend.position='none', plot.title = element_text(hjust=.3, vjust = -7, size=18),
+        plot.caption=element_text(vjust=20))+
+  #guides(fill = guide_legend(reverse = TRUE))+
+  # fiddle with the x position here to move labels in/out:
+  geom_text(aes(label=categories, x=xpos, y=(ymax+ymin)/2), size=3.5)+
+  geom_text(aes(label=counts, x=(xmin_l+xmax_l)/2, y=(ymax+ymin)/2), size=3.5, color="white")+
+  geom_text(data=counts2, aes(label=categories, x=2.8, y=(ymax+ymin)/2), size=2.5, color="Grey2")+
+  geom_text(data=counts2, aes(label=counts, x=(xmin_s+xmamx_s)/2, y=(ymax+ymin)/2), size=3.5, color="Grey2")
+ggsave("Q1_user_types_completed_survey_donut.jpg")
+
+
+Q1_other <- completed_full_survey %>% filter(is.na(`Q01UserType[other]`) == FALSE) %>%
+  select(id, `Q01UserType[other]`)
+cat("\nQ1 - Other responses:")
+Q1_other
+
+# Q2 Interested? Yes/No
+Q2_yes <- completed_first_page %>% filter(Q02Interest=="Yes")
+Q2_yes <- Q2_yes %>% left_join(Q1_counts %>% select(id, yes_count))
+Q2_yes_breakdown <-
+    data.frame(categories=c("Unity dev (only)",
+                            "Both researcher & Unity dev",
+                            "Researcher (only)",
+                            "Also therapist/clinician",
+                            "Also marketing/product testing",
+                            "Other"),
+               counts=c(nrow(Q2_yes %>% filter(`Q01UserType[SQ001]`=="Yes" & yes_count==1)),
+                        nrow(Q2_yes %>% filter(`Q01UserType[SQ001]`=="Yes" &`Q01UserType[SQ003]`=="Yes")),
+                        nrow(Q2_yes %>% filter(`Q01UserType[SQ003]`=="Yes" & yes_count==1)),
+                        nrow(Q2_yes %>% filter(`Q01UserType[SQ002]`=="Yes")),
+                        nrow(Q2_yes %>% filter(`Q01UserType[SQ004]`=="Yes")),
+                        nrow(Q2_yes %>% filter(is.na(`Q01UserType[other]`)==FALSE))))
+Q2_yes_breakdown$categories <- factor(Q2_yes_breakdown$categories, levels=Q2_yes_breakdown$categories)
+
+Q2_no <- completed_first_page %>% filter(Q02Interest=="No") %>%
+  left_join(Q1_counts %>% select(id, yes_count))
+Q2_no_breakdown <- data.frame(categories=c("Unity dev (only)",
+                            "Both researcher & Unity dev",
+                            "Researcher (only)",
+                            "Also therapist/clinician",
+                            "Also marketing/product testing",
+                            "Other"),
+               counts=c(nrow(Q2_no %>% filter(`Q01UserType[SQ001]`=="Yes" & yes_count==1)),
+                        nrow(Q2_no %>% filter(`Q01UserType[SQ001]`=="Yes" &`Q01UserType[SQ003]`=="Yes")),
+                        nrow(Q2_no %>% filter(`Q01UserType[SQ003]`=="Yes" & yes_count==1)),
+                        nrow(Q2_no %>% filter(`Q01UserType[SQ002]`=="Yes")),
+                        nrow(Q2_no %>% filter(`Q01UserType[SQ004]`=="Yes")),
+                        nrow(Q2_no %>% filter(is.na(`Q01UserType[other]`)==FALSE))))
+Q2_no_breakdown$categories <- factor(Q2_no_breakdown$categories, levels=Q2_no_breakdown$categories)
+  
+
+ggplot(Q2_yes_breakdown, aes(x="Yes", y=counts, fill=categories))+
+  geom_bar(stat="identity", position="stack")+
+  geom_bar(data=Q2_no_breakdown, aes(x="No", y=counts, fill=categories), stat="identity")+
+  labs(title = "Are you interested in this plugin?", fill="User type", y=NULL, x=NULL)+
+  theme_minimal()+
+  scale_x_discrete(labels = (c(paste0("No (", sum(Q2_no_breakdown$counts),")"),
+                            paste0("Yes (", sum(Q2_yes_breakdown$counts), ")"))))
+ggsave("interest.jpg")
+
+# Q3 What feature are you most interested in?
+Q3_counts <- data.frame(categories = c("Make reactive Unity software", "Observe user reactions while using", "Analyze user reactions after use", "Improve measurement tools","Other"),
+           counts = c(nrow(completed_first_page %>% filter(`Q03WhyInterested[SQ001]`=="Yes")),
+                      nrow(completed_first_page %>% filter(`Q03WhyInterested[SQ002]`=="Yes")),
+                      nrow(completed_first_page %>% filter(`Q03WhyInterested[SQ003]`=="Yes")),
+                      nrow(completed_first_page %>% filter(`Q03WhyInterested[SQ004]`=="Yes")),
+                      nrow(completed_first_page %>% filter(is.na(`Q03WhyInterested[other]`)==FALSE))))
+Q3_counts$categories <- factor(Q3_counts$categories, levels=Q3_counts$categories)
+ggplot(Q3_counts, aes(categories, counts, fill=categories))+
+  geom_bar(stat="identity", position="dodge")+theme_minimal()+
+  labs(title="Q3 What feature are you most interested in?", x=NULL, fill=NULL)+
+  scale_x_discrete(labels=NULL)+
+geom_text(aes(label=counts), vjust=1.2, color="white", size=3.5)
+ggsave("why_interested.jpg")
+
+# Q3 - amongst Devs
+Q3_counts <- data.frame(categories = c("Make reactive Unity software", "Observe user reactions while using", "Analyze user reactions after use", "Improve measurement tools","Other"),
+   counts = c(nrow(completed_first_page %>%
+                     filter(`Q03WhyInterested[SQ001]`=="Yes", `Q01UserType[SQ001]`=="Yes")),
+              nrow(completed_first_page %>%
+                     filter(`Q03WhyInterested[SQ002]`=="Yes", `Q01UserType[SQ001]`=="Yes")),
+              nrow(completed_first_page %>%
+                     filter(`Q03WhyInterested[SQ003]`=="Yes", `Q01UserType[SQ001]`=="Yes")),
+              nrow(completed_first_page %>%
+                     filter(`Q03WhyInterested[SQ004]`=="Yes", `Q01UserType[SQ001]`=="Yes")),
+              nrow(completed_first_page %>%
+                     filter(is.na(`Q03WhyInterested[other]`)==FALSE, `Q01UserType[SQ001]`=="Yes"))))
+Q3_counts$categories <- factor(Q3_counts$categories, levels=Q3_counts$categories)
+
+ggplot(Q3_counts, aes(categories, counts, fill=categories))+
+  geom_bar(stat="identity", position="dodge")+theme_minimal()+
+  labs(title="Q3 What feature are you most interested in?", subtitle="(Unity devs)",
+  x=NULL, fill=NULL,
+  caption=paste0("n = ", nrow(completed_first_page %>% filter(`Q01UserType[SQ001]`=="Yes"))))+
+  scale_x_discrete(labels=NULL)+
+geom_text(aes(label=counts), vjust=1.2, color="white", size=3.5)
+ggsave("what_feature_developers.jpg")
+
+# Q3 - amongst researchers
+Q3_counts <- data.frame(categories = c("Make reactive Unity software", "Observe user reactions while using", "Analyze user reactions after use", "Improve measurement tools","Other"),
+   counts = c(nrow(completed_first_page %>%
+                     filter(`Q03WhyInterested[SQ001]`=="Yes", `Q01UserType[SQ003]`=="Yes")),
+              nrow(completed_first_page %>%
+                     filter(`Q03WhyInterested[SQ002]`=="Yes", `Q01UserType[SQ003]`=="Yes")),
+              nrow(completed_first_page %>%
+                     filter(`Q03WhyInterested[SQ003]`=="Yes", `Q01UserType[SQ003]`=="Yes")),
+              nrow(completed_first_page %>%
+                     filter(`Q03WhyInterested[SQ004]`=="Yes", `Q01UserType[SQ003]`=="Yes")),
+              nrow(completed_first_page %>%
+                     filter(is.na(`Q03WhyInterested[other]`)==FALSE, `Q01UserType[SQ003]`=="Yes"))))
+Q3_counts$categories <- factor(Q3_counts$categories, levels=Q3_counts$categories)
+
+ggplot(Q3_counts, aes(categories, counts, fill=categories))+
+  geom_bar(stat="identity", position="dodge")+theme_minimal()+
+  labs(title="Q3 What feature are you most interested in?", subtitle="(Researchers)",
+  x=NULL, fill=NULL,
+  caption=paste0("n = ", nrow(completed_first_page %>% filter(`Q01UserType[SQ003]`=="Yes"))))+
+  scale_x_discrete(labels=NULL)+
+  geom_text(aes(label=counts), vjust=1.2, color="white", size=3.5)
+ggsave("what_feature_researchers.jpg")
+
 # Q4 - How do you currently measure your users' experience?
 
   # Q04HowMeasure[SQ001] - record video of user or user's screen
