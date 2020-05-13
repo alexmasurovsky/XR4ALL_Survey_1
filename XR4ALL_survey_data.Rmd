@@ -214,6 +214,12 @@ for (i in 1:length(Q1_counts[[1]])){
 # add column "yes_count" to identify which people put more than one response
 Q1 <- left_join(Q1, select(Q1_counts, id, yes_count))
 
+plot_x_lims = c(-2,8)
+xmin_l = 6
+xmax_l = 7
+xmin_s = 0
+xmax_s = 1
+
 # relevant counts
 relevant_counts <-
     data.frame(categories=c("Unity dev (only)",
@@ -232,7 +238,7 @@ relevant_counts$categories <- factor(relevant_counts$categories, levels=relevant
 
 #  set up donut plot
 relevant_counts$fraction = relevant_counts$count / sum(relevant_counts$count) # maybe make n instead
-relevant_counts$xpos <- c(4.9, 4.1, 4.0) # position of outer circle labels
+relevant_counts$xpos <- c(4.8, 4.0, 3.9) # position of outer circle labels
 relevant_counts$ymax = cumsum(relevant_counts$fraction)
 relevant_counts$ymin = c(0, head(relevant_counts$ymax, n=-1))
 #relevant_counts$categories <- str_c(relevant_counts$categories, ' (', relevant_counts$count, ')')
@@ -248,47 +254,25 @@ counts2$fraction = counts2$count / sum(counts2$count) # maybe make n instead
 counts2$ymax = cumsum(counts2$fraction)
 counts2$ymin = c(0, head(counts2$ymax, n=-1))
 
-# # plot
-# ggplot(relevant_counts, aes(fill=categories, ymax=ymax, ymin=ymin, xmin=5, xmax=6))+
-#   geom_rect()+
-#   xlim(c(0,8))+ # modify thickness; larger range = smaller, thinner plot
-#   coord_polar(theta="y", start=0)+ # comment this out to better visualize x-y plane
-#   geom_rect(data=counts2, aes(xmin=1, xmax=2))+
-#   scale_fill_brewer(palette = "Blues")+ #"Dark2")+
-#   scale_color_brewer(palette = "Blues")+ #copy above
-#   labs(title="User Types", x=NULL, y=NULL, fill="User type")+#caption=paste0("(completed full survey, n = ", n_completed, ")"))+
-#   theme_void()+
-#   theme(legend.position='none', plot.title = element_text(hjust=.3, size=18))+
-#   #guides(fill = guide_legend(reverse = TRUE))+
-#   # fiddle with the x position here to move labels in/out:
-#   geom_text(aes(label=categories, x=8, y=(ymax+ymin)/2), size=4)+
-#   geom_text(aes(label=counts, x=5.5, y=(ymax+ymin)/2), size=3.5, color="white")+
-#   geom_text(data=counts2, aes(label=categories, x=3.2, y=(ymax+ymin)/2), size=3.5, color="Grey2")+
-#   geom_text(data=counts2, aes(label=counts, x=1.5, y=(ymax+ymin)/2), size=3.5, color="Grey2")
-# ggsave("Q1_user_types_completed_survey_donut.jpg")
 
-xmin_l = 6
-xmax_l = 7
-xmin_s = 0
-xmax_s = 1
 # plot
 ggplot(relevant_counts, aes(fill=categories, ymax=ymax, ymin=ymin, xmin=xmin_l, xmax=xmax_l))+
   geom_rect()+
-  xlim(c(-2,8))+ # modify thickness; larger range = smaller, thinner plot
+  xlim(plot_x_lims)+ # modify thickness; larger range = smaller, thinner plot
   coord_polar(theta="y", start=0)+ # comment this out to better visualize x-y plane
   geom_rect(data=counts2, aes(xmin=xmin_s, xmax=xmax_s))+
   scale_fill_brewer(palette = "Blues")+ #"Dark2")+
   scale_color_brewer(palette = "Blues")+ #copy above
   labs(title="User Types", x=NULL, y=NULL, fill="User type",
-       caption=paste0("(completed full survey, n = ", n_completed, ")"))+
+       caption=paste0("n = ", n_completed))+
   theme_void()+
-  theme(legend.position='none', plot.title = element_text(hjust=.3, vjust = -7, size=18),
-        plot.caption=element_text(vjust=20))+
+  theme(legend.position='none', plot.title = element_text(hjust=.5, vjust = -7, size=18),
+        plot.caption=element_text(vjust=20, hjust = .8, face="italic"))+
   #guides(fill = guide_legend(reverse = TRUE))+
   # fiddle with the x position here to move labels in/out:
   geom_text(aes(label=categories, x=xpos, y=(ymax+ymin)/2), size=3.5)+
   geom_text(aes(label=counts, x=(xmin_l+xmax_l)/2, y=(ymax+ymin)/2), size=3.5, color="white")+
-  geom_text(data=counts2, aes(label=categories, x=2.8, y=(ymax+ymin)/2), size=2.5, color="Grey2")+
+  geom_text(data=counts2, aes(label=categories, x=xmax_s+1, y=(ymax+ymin)/2), size=2.5, color="Grey2")+
   geom_text(data=counts2, aes(label=counts, x=(xmin_s+xmamx_s)/2, y=(ymax+ymin)/2), size=3.5, color="Grey2")
 ggsave("Q1_user_types_completed_survey_donut.jpg")
 
@@ -348,14 +332,59 @@ Q3_counts <- data.frame(categories = c("Make reactive Unity software", "Observe 
                       nrow(completed_first_page %>% filter(`Q03WhyInterested[SQ002]`=="Yes")),
                       nrow(completed_first_page %>% filter(`Q03WhyInterested[SQ003]`=="Yes")),
                       nrow(completed_first_page %>% filter(`Q03WhyInterested[SQ004]`=="Yes")),
-                      nrow(completed_first_page %>% filter(is.na(`Q03WhyInterested[other]`)==FALSE))))
+                      nrow(completed_first_page %>% filter(is.na(`Q03WhyInterested[other]`)==FALSE)))) %>%
+  arrange(desc(counts))
 Q3_counts$categories <- factor(Q3_counts$categories, levels=Q3_counts$categories)
+
+# plot option 1 (bar)
 ggplot(Q3_counts, aes(categories, counts, fill=categories))+
   geom_bar(stat="identity", position="dodge")+theme_minimal()+
-  labs(title="Q3 What feature are you most interested in?", x=NULL, fill=NULL)+
+  labs(title="Which features of the Excite-O-Meter are you most interested in using?", x=NULL, fill=NULL,
+       caption=paste0("n = ",n_completed))+
+  scale_fill_brewer(palette="Blues", direction=-1)+
+  theme(plot.title = element_text(face = "bold"), plot.caption = element_text(face = "italic"))+
   scale_x_discrete(labels=NULL)+
-geom_text(aes(label=counts), vjust=1.2, color="white", size=3.5)
-ggsave("why_interested.jpg")
+  #guides(fill= guide_legend(reverse = TRUE))+
+  geom_text(aes(label=counts, y=counts-1), color="white", size=3.5)
+ggsave("Q3_why_interested_bar.jpg")
+
+# plot option 2 (round)
+Q3_counts <- Q3_counts %>% arrange(counts)
+Q3_counts$categories <- factor(Q3_counts$categories, levels=Q3_counts$categories)
+ggplot(Q3_counts, aes(categories, counts, fill=categories))+
+  ylim(c(0,n_completed))+
+  geom_bar(stat="identity")+
+  theme_void()+
+  coord_polar(theta="y")+
+  scale_fill_brewer(palette="Blues", direction=1)+
+  scale_color_brewer(palette="Blues", direction=1)+
+  labs(title="Which features of the Excite-O-Meter are you most interested in using?", x=NULL, color=NULL, fill=NULL,
+       caption=paste0("n = ",n_completed))+
+  #scale_x_discrete(labels=NULL)+
+  geom_label(aes(label=counts, y=.25*n_completed,), fill="white", color="black", show.legend = FALSE)+
+  guides(fill= guide_legend(reverse = TRUE))
+ggsave("Q3_why_interested_round.jpg")
+
+# # donut plot
+# ggplot(relevant_counts, aes(fill=categories, ymax=ymax, ymin=ymin, xmin=xmin_l, xmax=xmax_l))+
+#   geom_rect()+
+#   xlim(plot_x_lims)+ # modify thickness; larger range = smaller, thinner plot
+#   coord_polar(theta="y", start=0)+ # comment this out to better visualize x-y plane
+#   geom_rect(data=counts2, aes(xmin=xmin_s, xmax=xmax_s))+
+#   scale_fill_brewer(palette = "Blues")+ #"Dark2")+
+#   scale_color_brewer(palette = "Blues")+ #copy above
+#   labs(title="User Types", x=NULL, y=NULL, fill="User type",
+#        caption=paste0("n = ", n_completed))+
+#   theme_void()+
+#   theme(legend.position='none', plot.title = element_text(hjust=.5, vjust = -7, size=18),
+#         plot.caption=element_text(vjust=20, hjust = .8, face="italic"))+
+#   #guides(fill = guide_legend(reverse = TRUE))+
+#   # fiddle with the x position here to move labels in/out:
+#   geom_text(aes(label=categories, x=xpos, y=(ymax+ymin)/2), size=3.5)+
+#   geom_text(aes(label=counts, x=(xmin_l+xmax_l)/2, y=(ymax+ymin)/2), size=3.5, color="white")+
+#   geom_text(data=counts2, aes(label=categories, x=xmax_s+1, y=(ymax+ymin)/2), size=2.5, color="Grey2")+
+#   geom_text(data=counts2, aes(label=counts, x=(xmin_s+xmamx_s)/2, y=(ymax+ymin)/2), size=3.5, color="Grey2")
+# ggsave("Q1_user_types_completed_survey_donut.jpg")
 
 # Q3 - amongst Devs
 Q3_counts <- data.frame(categories = c("Make reactive Unity software", "Observe user reactions while using", "Analyze user reactions after use", "Improve measurement tools","Other"),
