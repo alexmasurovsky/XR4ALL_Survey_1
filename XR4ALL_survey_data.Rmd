@@ -10,7 +10,7 @@ knitr::opts_chunk$set(tidy = TRUE, message = FALSE, warning = FALSE, echo=FALSE)
 ```
 
 ```{r load_in, include = FALSE, echo=FALSE}
-Packages = c("dplyr", "ggplot2","pastecs", "rcompanion", "reshape2", "Rmisc", "here", "tidyverse", "stringr", "readxl", "rcolorbrewer") 
+Packages = c("dplyr", "ggplot2","pastecs", "rcompanion", "reshape2", "Rmisc", "here", "tidyverse", "stringr", "readxl", "RColorBrewer") 
 lapply(Packages, library, character.only = TRUE)
 
 raw_responses <- read_excel("results-survey-2020_05_12.xlsx")
@@ -23,9 +23,11 @@ completed_full_survey <- raw_responses %>% filter(lastpage==2)
 
 ```
 
-```{r overall}
+```{r n}
 n_first_page <- nrow(completed_first_page)
 n_completed <- nrow(completed_full_survey)
+
+cat(n_completed,"participants completed the survey.")
 
 ```
 
@@ -33,7 +35,7 @@ n_completed <- nrow(completed_full_survey)
 
 `r n_completed` people completed the whole survey.
 
-```{r completed_first_page}
+```{r completed_first_page, eval=FALSE}
 
 # Q1 I am a...
 # * Q01UserType[SQ001] - Unity developer (any level)
@@ -80,7 +82,7 @@ relevant_counts$categories <- factor(relevant_counts$categories, levels=relevant
 ggplot(relevant_counts, aes(categories, counts, fill=categories))+
   geom_bar(aes(fill=categories), stat="identity", position="dodge")+
   scale_x_discrete(labels=NULL)+
-  labs(title="User Types", x=NULL, y=NULL,
+  labs(title="User Role(s)", x=NULL, y=NULL,
        caption=paste0("(completed first 3 questions, n = ", n_first_page, ")"))+
   #coord_flip()+labs()+
   theme_minimal()+
@@ -198,7 +200,7 @@ ggsave("what_feature_researchers.jpg")
 
 ```
 
-```{r completed_survey}
+```{r q1_user_type}
 Q1 <- completed_full_survey %>% select(id, contains("Q01UserType"))
 
 # count responses per person
@@ -214,7 +216,10 @@ for (i in 1:length(Q1_counts[[1]])){
 # add column "yes_count" to identify which people put more than one response
 Q1 <- left_join(Q1, select(Q1_counts, id, yes_count))
 
-plot_x_lims = c(-2,8)
+
+# THE DONUT
+# for donut plot settings
+plot_x_lims = c(-1,8)
 xmin_l = 6
 xmax_l = 7
 xmin_s = 0
@@ -238,7 +243,7 @@ relevant_counts$categories <- factor(relevant_counts$categories, levels=relevant
 
 #  set up donut plot
 relevant_counts$fraction = relevant_counts$count / sum(relevant_counts$count) # maybe make n instead
-relevant_counts$xpos <- c(4.8, 4.0, 3.9) # position of outer circle labels
+relevant_counts$xpos <- c(4.8, 3.9, 3.7) # position of outer circle labels
 relevant_counts$ymax = cumsum(relevant_counts$fraction)
 relevant_counts$ymin = c(0, head(relevant_counts$ymax, n=-1))
 #relevant_counts$categories <- str_c(relevant_counts$categories, ' (', relevant_counts$count, ')')
@@ -254,36 +259,70 @@ counts2$fraction = counts2$count / sum(counts2$count) # maybe make n instead
 counts2$ymax = cumsum(counts2$fraction)
 counts2$ymin = c(0, head(counts2$ymax, n=-1))
 
+# plot donut
+# ggplot(relevant_counts, aes(fill=categories, ymax=ymax, ymin=ymin, xmin=xmin_l, xmax=xmax_l))+
+#   geom_rect()+
+#   xlim(plot_x_lims)+ # modify thickness; larger range = smaller, thinner plot
+#   coord_polar(theta="y", start=0)+ # comment this out to better visualize x-y plane
+#   geom_rect(data=counts2, aes(xmin=xmin_s, xmax=xmax_s))+
+#   scale_fill_brewer(palette = "Blues")+ #"Dark2")+
+#   scale_color_brewer(palette = "Blues")+ #copy above
+#   labs(title="User Role(s)", x=NULL, y=NULL, fill="User type",
+#        caption=paste0("n = ", n_completed))+
+#   theme_void()+
+#   theme(legend.position='none', plot.title = element_text(hjust=.5, vjust = -7, size=18),
+#         plot.caption=element_text(vjust=20, hjust = .8, face="italic"))+
+#   #guides(fill = guide_legend(reverse = TRUE))+
+#   # fiddle with the x position here to move labels in/out:
+#   geom_text(aes(label=categories, x=xpos, y=(ymax+ymin)/2), size=3.5)+
+#   geom_text(aes(label=counts, x=(xmin_l+xmax_l)/2, y=(ymax+ymin)/2), size=3.5, color="white")+
+#   geom_text(data=counts2, aes(label=categories, x=xmax_s+1, y=(ymax+ymin)/2), size=2.5, color="Grey2")+
+#   geom_text(data=counts2, aes(label=counts, x=(xmin_s+xmax_s)/2, y=(ymax+ymin)/2), size=3.5, color="Grey2")
+# ggsave("Q1_user_types_completed_survey_donut.jpg", width=8, height=8)
 
-# plot
-ggplot(relevant_counts, aes(fill=categories, ymax=ymax, ymin=ymin, xmin=xmin_l, xmax=xmax_l))+
-  geom_rect()+
-  xlim(plot_x_lims)+ # modify thickness; larger range = smaller, thinner plot
-  coord_polar(theta="y", start=0)+ # comment this out to better visualize x-y plane
-  geom_rect(data=counts2, aes(xmin=xmin_s, xmax=xmax_s))+
-  scale_fill_brewer(palette = "Blues")+ #"Dark2")+
-  scale_color_brewer(palette = "Blues")+ #copy above
-  labs(title="User Types", x=NULL, y=NULL, fill="User type",
-       caption=paste0("n = ", n_completed))+
-  theme_void()+
-  theme(legend.position='none', plot.title = element_text(hjust=.5, vjust = -7, size=18),
-        plot.caption=element_text(vjust=20, hjust = .8, face="italic"))+
-  #guides(fill = guide_legend(reverse = TRUE))+
-  # fiddle with the x position here to move labels in/out:
-  geom_text(aes(label=categories, x=xpos, y=(ymax+ymin)/2), size=3.5)+
-  geom_text(aes(label=counts, x=(xmin_l+xmax_l)/2, y=(ymax+ymin)/2), size=3.5, color="white")+
-  geom_text(data=counts2, aes(label=categories, x=xmax_s+1, y=(ymax+ymin)/2), size=2.5, color="Grey2")+
-  geom_text(data=counts2, aes(label=counts, x=(xmin_s+xmamx_s)/2, y=(ymax+ymin)/2), size=3.5, color="Grey2")
-ggsave("Q1_user_types_completed_survey_donut.jpg")
+# all responses
+all_counts <-
+    data.frame(categories=c("Unity developer",
+                            "Researcher",
+                           "Therapist/clinician",
+                           "Marketing/product testing",
+                           "Other"),
+               counts=c(nrow(Q1 %>% filter(`Q01UserType[SQ001]`=="Yes")),
+                        nrow(Q1 %>% filter(`Q01UserType[SQ003]`=="Yes")),
+                      nrow(Q1 %>% filter(`Q01UserType[SQ002]`=="Yes")),
+                       nrow(Q1 %>% filter(`Q01UserType[SQ004]`=="Yes")),
+                       nrow(Q1 %>% filter(is.na(`Q01UserType[other]`)==FALSE)))) #%>% arrange(desc(counts))
+all_counts$categories <- factor(all_counts$categories, levels=all_counts$categories)
 
+cat("All user role counts:")
+all_counts
+
+ggplot(all_counts, aes(categories, counts, fill=categories))+
+  geom_bar(stat="identity", position="dodge", width=.7)+
+  labs(title="User role(s)", x=NULL, y="Count", fill=NULL,
+       caption=paste0("n = ",n_completed," (respondents could select multiple options)"))+
+  #scale_fill_brewer(palette="Set2")+ #"Blues", direction=-1)+
+  theme_minimal()+
+  theme(plot.title = element_text(face = "bold"),
+        plot.caption = element_text(face = "italic"),#, hjust=1.1, vjust=15))+
+        legend.position = "none")+#, axis.text.x = element_text(angle=15, hjust=.7))+
+  scale_x_discrete(limits = rev(levels(all_counts$categories)))+
+  coord_flip()+
+  #guides(fill= guide_legend(reverse = TRUE))+
+  geom_text(aes(label=counts, y=counts-1), color="white", size=3.5)
+ggsave("Q1_user_roles_all_bar.jpg")
 
 Q1_other <- completed_full_survey %>% filter(is.na(`Q01UserType[other]`) == FALSE) %>%
   select(id, `Q01UserType[other]`)
-cat("\nQ1 - Other responses:")
+cat("\nQ1 - \"Other\" elaboration:")
 Q1_other
 
+```
+
+```{r q2_interested_yes_no}
+
 # Q2 Interested? Yes/No
-Q2_yes <- completed_first_page %>% filter(Q02Interest=="Yes")
+Q2_yes <- completed_full_survey %>% filter(Q02Interest=="Yes")
 Q2_yes <- Q2_yes %>% left_join(Q1_counts %>% select(id, yes_count))
 Q2_yes_breakdown <-
     data.frame(categories=c("Unity dev (only)",
@@ -300,7 +339,7 @@ Q2_yes_breakdown <-
                         nrow(Q2_yes %>% filter(is.na(`Q01UserType[other]`)==FALSE))))
 Q2_yes_breakdown$categories <- factor(Q2_yes_breakdown$categories, levels=Q2_yes_breakdown$categories)
 
-Q2_no <- completed_first_page %>% filter(Q02Interest=="No") %>%
+Q2_no <- completed_full_survey %>% filter(Q02Interest=="No") %>%
   left_join(Q1_counts %>% select(id, yes_count))
 Q2_no_breakdown <- data.frame(categories=c("Unity dev (only)",
                             "Both researcher & Unity dev",
@@ -326,6 +365,12 @@ ggplot(Q2_yes_breakdown, aes(x="Yes", y=counts, fill=categories))+
                             paste0("Yes (", sum(Q2_yes_breakdown$counts), ")"))))
 ggsave("interest.jpg")
 
+cat("Q2 Interest [ n = ", n_completed,"]\nYes:", nrow(Q2_yes), "\nNo:", nrow(Q2_no))
+
+```
+
+```{r q3_which_feature}
+
 # Q3 What feature are you most interested in?
 Q3_counts <- data.frame(categories = c("Make reactive Unity software", "Observe user reactions while using", "Analyze user reactions after use", "Improve measurement tools","Other"),
            counts = c(nrow(completed_first_page %>% filter(`Q03WhyInterested[SQ001]`=="Yes")),
@@ -333,59 +378,49 @@ Q3_counts <- data.frame(categories = c("Make reactive Unity software", "Observe 
                       nrow(completed_first_page %>% filter(`Q03WhyInterested[SQ003]`=="Yes")),
                       nrow(completed_first_page %>% filter(`Q03WhyInterested[SQ004]`=="Yes")),
                       nrow(completed_first_page %>% filter(is.na(`Q03WhyInterested[other]`)==FALSE)))) %>%
-  arrange(desc(counts))
+  arrange(counts)
 Q3_counts$categories <- factor(Q3_counts$categories, levels=Q3_counts$categories)
 
-# plot option 1 (bar)
+# plot (bar)
 ggplot(Q3_counts, aes(categories, counts, fill=categories))+
-  geom_bar(stat="identity", position="dodge")+theme_minimal()+
-  labs(title="Which features of the Excite-O-Meter are you most interested in using?", x=NULL, fill=NULL,
-       caption=paste0("n = ",n_completed))+
-  scale_fill_brewer(palette="Blues", direction=-1)+
-  theme(plot.title = element_text(face = "bold"), plot.caption = element_text(face = "italic"))+
+  geom_bar(stat="identity", position="dodge", width=.6)+
+  labs(title="Preferred features", x=NULL, y="Count", fill=NULL,
+       caption=paste0("n = ",n_completed," (respondents could select multiple options)"))+
+  scale_fill_brewer(palette="Dark2")+ #"Blues", direction=-1)+
+  #scale_fill_viridis(discrete = TRUE, begin=0, end=.9)+
+  theme_minimal()+
+  ylim(0,n_completed)+
+  theme(plot.title = element_text(face = "bold", size=20,),
+        #axis.text.x = element_text(angle=90, vjust = .7, size=10),
+        #axis.text.y = element_text(hjust=0),
+        #legend.text = element_text(size=12), legend.title = element_text(size=14),
+        plot.caption = element_text(face = "italic", size=9),# hjust=1.1, vjust=15),
+        legend.position = "none", legend.direction = "vertical")+# axis.text.x = element_text(angle=15, hjust=.7))+
+  coord_flip()+
   scale_x_discrete(labels=NULL)+
   #guides(fill= guide_legend(reverse = TRUE))+
-  geom_text(aes(label=counts, y=counts-1), color="white", size=3.5)
-ggsave("Q3_why_interested_bar.jpg")
+  geom_text(aes(label=categories, y=0), hjust="left", vjust=-2.5, fontface="bold", size=6, color="black")+
+  #geom_label(aes(label=categories, y=1), hjust="left", vjust=-1, size=6, color="white")+
+  geom_text(aes(label=counts, y=counts-2), color="white", size=4.5)
+ggsave("Q3_why_interested_bar.jpg", width=5, height=7)
 
 # plot option 2 (round)
-Q3_counts <- Q3_counts %>% arrange(counts)
-Q3_counts$categories <- factor(Q3_counts$categories, levels=Q3_counts$categories)
-ggplot(Q3_counts, aes(categories, counts, fill=categories))+
-  ylim(c(0,n_completed))+
-  geom_bar(stat="identity")+
-  theme_void()+
-  theme(plot.title = element_text(face = "bold"), plot.caption = element_text(face = "italic"))+
-  coord_polar(theta="y")+
-  scale_fill_brewer(palette="Blues", direction=1)+
-  scale_color_brewer(palette="Blues", direction=1)+
-  labs(title="Which features of the Excite-O-Meter are you most interested in using?", x=NULL, color=NULL, fill=NULL,
-       caption=paste0("n = ",n_completed))+
-  #scale_x_discrete(labels=NULL)+
-  geom_label(aes(label=counts, y=.25*n_completed,), fill="white", color="black", show.legend = FALSE)+
-  guides(fill= guide_legend(reverse = TRUE))
-ggsave("Q3_why_interested_round.jpg")
-
-# # donut plot
-# ggplot(relevant_counts, aes(fill=categories, ymax=ymax, ymin=ymin, xmin=xmin_l, xmax=xmax_l))+
-#   geom_rect()+
-#   xlim(plot_x_lims)+ # modify thickness; larger range = smaller, thinner plot
-#   coord_polar(theta="y", start=0)+ # comment this out to better visualize x-y plane
-#   geom_rect(data=counts2, aes(xmin=xmin_s, xmax=xmax_s))+
-#   scale_fill_brewer(palette = "Blues")+ #"Dark2")+
-#   scale_color_brewer(palette = "Blues")+ #copy above
-#   labs(title="User Types", x=NULL, y=NULL, fill="User type",
-#        caption=paste0("n = ", n_completed))+
+# Q3_counts <- Q3_counts %>% arrange(counts)
+# Q3_counts$categories <- factor(Q3_counts$categories, levels=Q3_counts$categories)
+# ggplot(Q3_counts, aes(categories, counts, fill=categories))+
+#   ylim(c(0,n_completed))+
+#   geom_bar(stat="identity")+
 #   theme_void()+
-#   theme(legend.position='none', plot.title = element_text(hjust=.5, vjust = -7, size=18),
-#         plot.caption=element_text(vjust=20, hjust = .8, face="italic"))+
-#   #guides(fill = guide_legend(reverse = TRUE))+
-#   # fiddle with the x position here to move labels in/out:
-#   geom_text(aes(label=categories, x=xpos, y=(ymax+ymin)/2), size=3.5)+
-#   geom_text(aes(label=counts, x=(xmin_l+xmax_l)/2, y=(ymax+ymin)/2), size=3.5, color="white")+
-#   geom_text(data=counts2, aes(label=categories, x=xmax_s+1, y=(ymax+ymin)/2), size=2.5, color="Grey2")+
-#   geom_text(data=counts2, aes(label=counts, x=(xmin_s+xmamx_s)/2, y=(ymax+ymin)/2), size=3.5, color="Grey2")
-# ggsave("Q1_user_types_completed_survey_donut.jpg")
+#   theme(plot.title = element_text(face = "bold"), plot.caption = element_text(face = "italic"))+
+#   coord_polar(theta="y")+
+#   scale_fill_brewer(palette="Blues", direction=1)+
+#   scale_color_brewer(palette="Blues", direction=1)+
+#   labs(title="Which features of the Excite-O-Meter are you most interested in using?", x=NULL, color=NULL, fill=NULL,
+#        caption=paste0("n = ",n_completed))+
+#   #scale_x_discrete(labels=NULL)+
+#   geom_label(aes(label=counts, y=.25*n_completed,), fill="white", color="black", show.legend = FALSE)+
+#   guides(fill= guide_legend(reverse = TRUE))
+# ggsave("Q3_why_interested_round.jpg")
 
 # Q3 - amongst Devs
 Q3_counts <- data.frame(categories = c("Make reactive Unity software", "Observe user reactions while using", "Analyze user reactions after use", "Improve measurement tools","Other"),
@@ -433,6 +468,9 @@ ggplot(Q3_counts, aes(categories, counts, fill=categories))+
   geom_text(aes(label=counts), vjust=1.2, color="white", size=3.5)
 ggsave("what_feature_researchers.jpg")
 
+```
+
+```{r q4_how_measure}
 # Q4 - How do you currently measure your users' experience?
 
   # Q04HowMeasure[SQ001] - record video of user or user's screen
@@ -448,16 +486,23 @@ Q4_total_counts <-
                             "Analyze behavior",
                             "Ask the user",
                             "Physiological (incl. HR)",
-                            "Brain measurements",
-                            "None",
-                            "Other"),
+                            "Brain measurements"),
+                            #"None",
+                            #"Other"),
                counts=c(nrow(completed_full_survey %>% filter(`Q04HowMeasure[SQ001]`=="Yes")),
                         nrow(completed_full_survey %>% filter(`Q04HowMeasure[SQ002]`=="Yes")),
                         nrow(completed_full_survey %>% filter(`Q04HowMeasure[SQ003]`=="Yes")),
                         nrow(completed_full_survey %>% filter(`Q04HowMeasure[SQ004]`=="Yes")),
-                        nrow(completed_full_survey %>% filter(`Q04HowMeasure[SQ005]`=="Yes")),
-                        nrow(completed_full_survey %>% filter(`Q04HowMeasure[SQ006]`=="Yes")),
-                        nrow(completed_full_survey %>% filter(is.na(`Q04HowMeasure[other]`)==FALSE))))
+                        nrow(completed_full_survey %>% filter(`Q04HowMeasure[SQ005]`=="Yes")))) %>%
+                        #nrow(completed_full_survey %>% filter(`Q04HowMeasure[SQ006]`=="Yes")),
+                        #nrow(completed_full_survey %>% filter(is.na(`Q04HowMeasure[other]`)==FALSE))))
+  arrange(desc(counts)) %>%
+  bind_rows(data.frame(categories=c(
+                            "None",
+                            "Other"),
+                       counts=c(
+                         nrow(completed_full_survey %>% filter(`Q04HowMeasure[SQ006]`=="Yes")),
+                         nrow(completed_full_survey %>% filter(is.na(`Q04HowMeasure[other]`)==FALSE)))))
 Q4_total_counts$categories <- factor(Q4_total_counts$categories, levels=Q4_total_counts$categories)
 
 # in case curious how many people chose multiple responses for Q4
@@ -469,6 +514,8 @@ for (i in 1:nrow(Q4_num_selected)){
   row.names(this_row) <- NULL
   Q4_num_selected[i,"yes_count"] <- sum(as.vector(this_row)=="Yes")
 }
+
+Q4_total_counts
 
 ggplot(Q4_total_counts, aes(categories, counts, fill=categories))+
   geom_bar(stat="identity", position="dodge")+
@@ -493,12 +540,19 @@ Q4_ext_responses <- completed_full_survey %>% filter(is.na(`Q045CurrentTools[SQ0
 cat("If you measure physiology or brain, what hardware and software do you use?")
 Q4_ext_responses
 
+```
+
+```{r q5_unity_proficiency}
+
 # Q5 - Unity proficiency (demographic)
+# eventually: make into donut plot
 Q05_proficiency_counts <- count(completed_full_survey$Q05ProficiencyUnity)
 Q05_proficiency_counts$x <- 
   factor(Q05_proficiency_counts$x, levels=
            c("None","Beginner or hobbyist", "Intermediate professional",
              "Expert professional (e.g., Lead Developer)"))
+Q05_proficiency_counts <- Q05_proficiency_counts %>% arrange(levels(x))
+Q05_proficiency_counts
 
 ggplot(Q05_proficiency_counts, aes(x, freq, fill=x))+
   geom_bar(stat="identity")+theme_minimal()+theme(axis.text.x = element_blank())+
@@ -513,6 +567,10 @@ ggplot(Q05_proficiency_counts, aes(x, freq, fill=x))+
   #theme(legend.position='left')
 
 ggsave("Q05_proficiency.jpg")
+
+```
+
+```{r q6_industry}
 
 # Q6 Industry (what kinds of apps do you make?)
 
@@ -557,26 +615,33 @@ Q6_total_counts <-
               nrow(completed_full_survey %>% filter(`Q06ApplicationTypes[SQ010]`=="Yes")),
               nrow(completed_full_survey %>% filter(`Q06ApplicationTypes[SQ011]`=="Yes")),
               nrow(completed_full_survey %>% filter(`Q06ApplicationTypes[SQ012]`=="Yes")),
-              nrow(completed_full_survey %>% filter(is.na(`Q06ApplicationTypes[other]`)==FALSE))))
-
+              nrow(completed_full_survey %>% filter(is.na(`Q06ApplicationTypes[other]`)==FALSE)))) %>%
+  arrange(desc(counts))
 Q6_total_counts$categories <- factor(Q6_total_counts$categories, levels=Q6_total_counts$categories)
 
 ggplot(Q6_total_counts, aes(categories, counts, fill=categories))+
   geom_bar(stat="identity", position="dodge")+
   theme_minimal()+
-  theme(legend.position = "none")+ #, axis.text.x = element_text(angle=15, hjust=.7))+
+  theme(legend.position = "none")+#, plot.title=element_text(hjust=-1))+ #, axis.text.x = element_text(angle=15, hjust=.7))+
   labs(title="Q6 - What kinds of applications are you involved with creating or testing", x=NULL, y=NULL, fill=NULL)+
+  #scale_fill_brewer(palette="Set2")+
   #scale_x_discrete(labels=NULL)+
   coord_flip()+
   scale_x_discrete(limits = rev(levels(Q6_total_counts$categories)))+
   geom_text(aes(label=counts, y=counts-1), color="white") #,vjust=1.2)
 ggsave("Q6_how_measure.jpg")
 
+Q6_total_counts
+
 # Q6 ext - Training for what industry?
 Q6_ext_responses <- completed_full_survey %>%
   filter(`Q06ApplicationTypes[SQ005]` == "Yes", is.na(`Q065WhatIndustry`)==FALSE) %>%
   select(id, contains("Q065"))
 Q6_ext_responses
+
+```
+
+```{r q7_how_often_pay}
 
 # Q7 How often do you (or your company) pay for tools/plugins for Unity?
 # Three or more times per year
@@ -603,6 +668,10 @@ ggplot(Q7_counts, aes(x, freq, fill=x))+
 
 ggsave("Q7_HowOftenPayForTools.jpg")
 
+```
+
+```{r q8_how_much_pay}
+
 #Q8 How much would you be willing to pay for one Excite-O-Meter license?
   # € 100 - 300
   # € 51 - 100
@@ -610,26 +679,94 @@ ggsave("Q7_HowOftenPayForTools.jpg")
   # € 26 - 30
   # € 11 - 25
   # € 1 - 10
-Q8_counts <- count(completed_full_survey$Q08HowMuchWouldPay)
-Q8_counts$x <- 
-  factor(Q8_counts$x, levels=
+Q8_counts <- count(completed_full_survey$Q08HowMuchWouldPay) %>% select(categories=x, counts=freq)
+Q8_counts$categories <- 
+  factor(Q8_counts$categories, levels=
            c("€ 100 - 300",
              "€ 51 - 100",
              "€ 31 - 50",
              "€ 26 - 30",
              "€ 11 - 25",
              "€ 1 - 10"))
-ggplot(Q8_counts, aes(x, freq, fill=x))+
-  geom_bar(stat="identity")+
+library("viridis")
+# plot (bar)
+ggplot(Q8_counts, aes(categories, counts, fill=categories))+
+  geom_bar(stat="identity", position="dodge", width=.6)+
+  labs(title="How much would you pay for \none license?", x=NULL, y="Count", fill=NULL,
+       caption=paste0("n = ",n_completed))+
+  #scale_fill_brewer(palette="Blues", direction=1)+
+  #scale_fill_manual(values=brewer.pal(9, "Blues"))+
+  scale_fill_viridis(discrete = TRUE, begin=.2, end=.6)+
+  #scale_fill_manual(values=viridis(nrow(Q8_counts), begin=.2, end=.5))+
+  #scale_fill_discrete(h = c(200, 260))+
+  #h.start = 280)+
   theme_minimal()+
-  #theme(legend.position="none", axis.text.x = element_text(angle=15, hjust=.7))+
-  theme(axis.text.x = element_blank())+
-  labs(title="Q8 How much would you be willing to pay for one Excite-O-Meter license?",
-       x=NULL,y=NULL, fill=NULL,
-       caption=paste0("n = ",sum(Q8_counts$freq)))+
-  geom_text(aes(label=freq), vjust=1.2, color="white", size=3.5)
+  #ylim(0,n_completed)+
+  theme(plot.title = element_text(face = "bold", size=20,),
+        #axis.text.x = element_text(angle=90, vjust = .7, size=10),
+        #axis.text.y = element_text(hjust=0),
+        #legend.text = element_text(size=12), legend.title = element_text(size=14),
+        plot.caption = element_text(face = "italic", size=9),# hjust=1.1, vjust=15),
+        legend.position = "none", legend.direction = "vertical")+# axis.text.x = element_text(angle=15, hjust=.7))+
+  coord_flip()+
+  scale_x_discrete(labels=NULL)+
+  #guides(fill= guide_legend(reverse = TRUE))+
+  geom_text(aes(label=categories, y=0), hjust="left", fontface="bold", size=6, color="black", vjust=-2.5)+
+  #geom_label(aes(label=categories, y=1), hjust="left", vjust=-1, size=6, color="white")+
+  geom_text(aes(label=counts, y=counts-1), color="white", size=4.5)
+ggsave("Q8_HowMuchWouldYouPay_bar.jpg", width=5, height=8)
 
-ggsave("Q8_HowMuchWouldYouPay.jpg")
+# ggplot(Q8_counts, aes(categories, count, fill=categories))+
+#   geom_bar(stat="identity")+
+#   theme_minimal()+
+#   #theme(legend.position="none", axis.text.x = element_text(angle=15, hjust=.7))+
+#   theme(axis.text.x = element_blank(), #element_text(size=12),
+#         legend.position="right", legend.text = element_text(size=14, face="bold"),
+#         legend.title = element_text(size=14, face="bold"),
+#         plot.caption = element_text(face="italic"))+
+#   scale_fill_brewer(palette="Set2")+
+#   labs(title=NULL,
+#        x=NULL,y="Count", fill=NULL,#"How much would\n you pay?",
+#        caption=paste0("n = ",n_completed))+
+#   geom_text(aes(label=count, y=count-.5), color="white", size=5)#+
+#   #geom_text(aes(label=categories, y=count+.3), fontface="bold", size=5, hjust=.6)
+# ggsave("Q8_HowMuchWouldYouPay_bar.jpg", width=5, height=8)
+
+
+#  set up donut plot
+# Q8_counts$fraction = Q8_counts$count / sum(Q8_counts$count) # maybe make n instead
+# # Q8_counts$xpos <- c(4.8, 3.9, 3.7) # position of outer circle labels
+# Q8_counts$ymax = cumsum(Q8_counts$fraction)
+# Q8_counts$ymin = c(0, head(Q8_counts$ymax, n=-1))
+# #Q8_counts$categories <- str_c(Q8_counts$categories, ' (', Q8_counts$count, ')')
+# 
+# xmax=4
+# xmin=3
+# # plot donut
+# ggplot(Q8_counts, aes(fill=categories, ymax=ymax, ymin=ymin, xmin=xmin, xmax=xmax))+
+#   geom_rect()+
+#   xlim(c(0,4))+ # modify thickness; larger range = smaller, thinner plot
+#   coord_polar(theta="y", start=0)+ # comment this out to better visualize x-y plane
+#   scale_fill_brewer(palette = "BuPu", direction=-1)+ #"Dark2")+
+#   scale_color_brewer(palette = "Blues")+ #copy above
+#   labs(title="How much would you pay for one Excite-O-Meter license?", x=NULL, y=NULL, fill="User type",
+#        caption=paste0("n = ", n_completed))+
+#   theme_void()+
+#   theme(legend.position='left', plot.title = element_text(hjust=.5, vjust = -7, size=18),
+#         plot.caption=element_text(vjust=20, hjust = .8, face="italic"))+
+#   #guides(fill = guide_legend(reverse = TRUE))+
+#   # fiddle with the x position here to move labels in/out:
+#   geom_text(aes(label=categories, x=xmax-1.6, y=(ymax+ymin)/2), size=3.5)+
+#   geom_text(aes(label=count, x=xmax-(.4), y=(ymax+ymin)/2), size=5, fontface="bold", color="white")
+# ggsave("Q8_how_much_pay_donut.jpg")
+
+
+
+
+
+
+
+
 
 # how much would unity devs pay?
 plotdata <- completed_full_survey %>% filter(`Q01UserType[SQ001]` == "Yes")
@@ -642,6 +779,9 @@ Q8_counts$x <-
              "€ 26 - 30",
              "€ 11 - 25",
              "€ 1 - 10"))
+
+
+
 ggplot(Q8_counts, aes(x, freq, fill=x))+
   geom_bar(stat="identity")+
   theme_minimal()+
@@ -674,6 +814,10 @@ ggplot(Q8_counts, aes(x, freq, fill=x))+
        x=NULL,y=NULL, fill=NULL,
        caption=paste0("n = ",sum(Q8_counts$freq)))+
   geom_text(aes(label=freq), vjust=1.2, color="white", size=3.5)
+
+```
+
+```{r number_one_consideration}
 
 #Q9 What is the number one thing you want us to consider while developing this plugin?
 Q9 <- completed_full_survey %>% filter(is.na(Q08WhatElse)==FALSE)
