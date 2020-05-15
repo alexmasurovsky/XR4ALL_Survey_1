@@ -13,6 +13,9 @@ knitr::opts_chunk$set(tidy = TRUE, message = FALSE, warning = FALSE, echo=FALSE)
 Packages = c("dplyr", "ggplot2","pastecs", "rcompanion", "reshape2", "Rmisc", "here", "tidyverse", "stringr", "readxl", "RColorBrewer") 
 lapply(Packages, library, character.only = TRUE)
 
+# data download protocol:
+# format: Excel, Headings: Question code, Responses: full answers, everything else: defaults
+
 raw_responses <- read_excel("results-survey-2020_05_12.xlsx")
 
 # dataset for all that completed the first page
@@ -377,8 +380,7 @@ Q3_counts <- data.frame(categories = c("Make reactive Unity software", "Observe 
                       nrow(completed_first_page %>% filter(`Q03WhyInterested[SQ002]`=="Yes")),
                       nrow(completed_first_page %>% filter(`Q03WhyInterested[SQ003]`=="Yes")),
                       nrow(completed_first_page %>% filter(`Q03WhyInterested[SQ004]`=="Yes")),
-                      nrow(completed_first_page %>% filter(is.na(`Q03WhyInterested[other]`)==FALSE)))) %>%
-  arrange(counts)
+                      nrow(completed_first_page %>% filter(is.na(`Q03WhyInterested[other]`)==FALSE)))) #%>% arrange(counts)
 Q3_counts$categories <- factor(Q3_counts$categories, levels=Q3_counts$categories)
 
 # plot (bar)
@@ -397,7 +399,7 @@ ggplot(Q3_counts, aes(categories, counts, fill=categories))+
         plot.caption = element_text(face = "italic", size=9),# hjust=1.1, vjust=15),
         legend.position = "none", legend.direction = "vertical")+# axis.text.x = element_text(angle=15, hjust=.7))+
   coord_flip()+
-  scale_x_discrete(labels=NULL)+
+  scale_x_discrete(labels=NULL, limits = rev(levels(Q3_counts$categories)))+ #reverse x axis
   #guides(fill= guide_legend(reverse = TRUE))+
   geom_text(aes(label=categories, y=0), hjust="left", vjust=-2.5, fontface="bold", size=6, color="black")+
   #geom_label(aes(label=categories, y=1), hjust="left", vjust=-1, size=6, color="white")+
@@ -441,8 +443,11 @@ ggplot(Q3_counts, aes(categories, counts, fill=categories))+
   labs(title="Q3 What feature are you most interested in?", subtitle="(Unity devs)",
   x=NULL, fill=NULL,
   caption=paste0("n = ", nrow(completed_first_page %>% filter(`Q01UserType[SQ001]`=="Yes"))))+
-  scale_x_discrete(labels=NULL)+
-geom_text(aes(label=counts), vjust=1.2, color="white", size=3.5)
+  scale_x_discrete(limits = rev(levels(Q3_counts$categories)))+
+  coord_flip()+
+  theme(legend.position = "none")+
+  scale_fill_brewer(palette="Dark2")+
+geom_text(aes(label=counts, y=counts-2), color="white", size=3.5)
 ggsave("what_feature_developers.jpg")
 
 # Q3 - amongst researchers
@@ -464,8 +469,11 @@ ggplot(Q3_counts, aes(categories, counts, fill=categories))+
   labs(title="Q3 What feature are you most interested in?", subtitle="(Researchers)",
   x=NULL, fill=NULL,
   caption=paste0("n = ", nrow(completed_first_page %>% filter(`Q01UserType[SQ003]`=="Yes"))))+
-  scale_x_discrete(labels=NULL)+
-  geom_text(aes(label=counts), vjust=1.2, color="white", size=3.5)
+  scale_x_discrete(limits = rev(levels(Q3_counts$categories)))+
+  scale_fill_brewer(palette="Dark2")+
+  coord_flip()+
+  theme(legend.position = "none")+
+  geom_text(aes(label=counts, y=counts-2), color="white", size=3.5)
 ggsave("what_feature_researchers.jpg")
 
 ```
@@ -623,7 +631,7 @@ ggplot(Q6_total_counts, aes(categories, counts, fill=categories))+
   geom_bar(stat="identity", position="dodge")+
   theme_minimal()+
   theme(legend.position = "none")+#, plot.title=element_text(hjust=-1))+ #, axis.text.x = element_text(angle=15, hjust=.7))+
-  labs(title="Q6 - What kinds of applications are you involved with creating or testing", x=NULL, y=NULL, fill=NULL)+
+  labs(title="Q6 - Types of XR applications", x=NULL, y=NULL, fill=NULL)+
   #scale_fill_brewer(palette="Set2")+
   #scale_x_discrete(labels=NULL)+
   coord_flip()+
@@ -664,7 +672,9 @@ ggplot(Q7_counts, aes(x, freq, fill=x))+
   labs(title="Q7 How often do you (or your company) pay for tools/plugins for Unity?",
        x=NULL,y=NULL, fill=NULL,
        caption=paste0("n = ",sum(Q7_counts$freq)))+
-  geom_text(aes(label=freq), vjust=1.2, color="white", size=3.5)
+  scale_fill_brewer(palette = "Dark2")+
+  coord_flip()+
+  geom_text(aes(label=freq, y=freq-1), color="white", size=3.5)
 
 ggsave("Q7_HowOftenPayForTools.jpg")
 
@@ -760,14 +770,6 @@ ggsave("Q8_HowMuchWouldYouPay_bar.jpg", width=5, height=8)
 #   geom_text(aes(label=count, x=xmax-(.4), y=(ymax+ymin)/2), size=5, fontface="bold", color="white")
 # ggsave("Q8_how_much_pay_donut.jpg")
 
-
-
-
-
-
-
-
-
 # how much would unity devs pay?
 plotdata <- completed_full_survey %>% filter(`Q01UserType[SQ001]` == "Yes")
 Q8_counts <- count(plotdata$Q08HowMuchWouldPay)
@@ -780,18 +782,19 @@ Q8_counts$x <-
              "€ 11 - 25",
              "€ 1 - 10"))
 
-
-
 ggplot(Q8_counts, aes(x, freq, fill=x))+
   geom_bar(stat="identity")+
   theme_minimal()+
-  #theme(legend.position="none", axis.text.x = element_text(angle=15, hjust=.7))+
-  theme(axis.text.x = element_blank())+
+  theme(legend.position="none")+#axis.text.x = element_blank())+
   labs(title="Q8 How much would you be willing to pay for one Excite-O-Meter license?",
        subtitle = "(Unity devs)",
        x=NULL,y=NULL, fill=NULL,
        caption=paste0("n = ",sum(Q8_counts$freq)))+
-  geom_text(aes(label=freq), vjust=1.2, color="white", size=3.5)
+  scale_fill_brewer(palette="Blues")+
+  coord_flip()+
+  scale_x_discrete(labels=NULL, limits = rev(levels(Q8_counts$categories)))+ #reverse x axis
+
+  geom_text(aes(label=freq, y=freq-1), vjust=1.2, color="white", size=3.5)
 
 # how much would researchers pay?
 plotdata <- completed_full_survey %>% filter(`Q01UserType[SQ003]` == "Yes")
@@ -809,20 +812,27 @@ ggplot(Q8_counts, aes(x, freq, fill=x))+
   theme_minimal()+
   #theme(legend.position="none", axis.text.x = element_text(angle=15, hjust=.7))+
   theme(axis.text.x = element_blank())+
+  scale_fill_brewer(palette="Blues")+
+  theme(legend.position="none")+
+  coord_flip()+
+  scale_x_discrete(labels=NULL, limits = rev(levels(Q8_counts$categories)))+ #reverse x axis
   labs(title="Q8 How much would you be willing to pay for one Excite-O-Meter license?",
        subtitle = "(Researchers)",
        x=NULL,y=NULL, fill=NULL,
        caption=paste0("n = ",sum(Q8_counts$freq)))+
-  geom_text(aes(label=freq), vjust=1.2, color="white", size=3.5)
+  geom_text(aes(label=freq, y=freq-1), color="white", size=3.5)
 
 ```
 
 ```{r number_one_consideration}
 
 #Q9 What is the number one thing you want us to consider while developing this plugin?
-Q9 <- completed_full_survey %>% filter(is.na(Q08WhatElse)==FALSE)
-cat("Q9 What is the number one thing you want us to consider while developing this plugin?")
-Q9 %>% select(id, `Q08WhatElse`)
-cat(nrow(Q9)," respondents answered this question.")
+Q9 <- completed_full_survey %>% filter(is.na(Q08WhatElse)==FALSE) %>% select(id, `Q08WhatElse`)
+cat("Q9 What is the number one thing you want us to consider while developing this plugin?\n")
+cat(nrow(Q9)," respondents answered this question.\n")
+Q9$Q08WhatElse
+sink("q9_number_one_thing.txt")
+write(Q9$Q08WhatElse)
+sink()
 
 ```
