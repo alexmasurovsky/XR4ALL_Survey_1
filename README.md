@@ -7,5 +7,3 @@ The project was to create a technical and business plan for a Unity plugin that 
 The survey sought to inform development of the plugin by gauging the interests of potential users on key questions.
 
 I played around with donut plots, but bar plots seemed to display the results most clearly.
-
-You can see the basic output by downloading the .html file and opening it in any browser (it is an R Markdown output file).
